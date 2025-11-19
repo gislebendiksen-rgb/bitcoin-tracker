@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Price Tracker with Technical Indicators</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bitcoin Price Tracker</h1>
+            <p class="subtitle">Real-time price, technical indicators, and trading signals</p>
+        </header>
+
+        <main>
+            <!-- Loading State -->
+            <div id="loading" class="loading">
+                <p>Loading Bitcoin data...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="error" style="display: none;">
+                <p id="error-message"></p>
+            </div>
+
+            <!-- Data Display -->
+            <div id="content" style="display: none;">
+                <!-- Current Price Section -->
+                <section class="price-section">
+                    <div class="card price-card">
+                        <h2>Current Bitcoin Price</h2>
+                        <div class="price-display">
+                            <span id="current-price" class="price">$0.00</span>
+                            <span id="price-currency" class="currency">USD</span>
+                        </div>
+                        <p class="last-updated">Last updated: <span id="last-update">--:--:--</span></p>
+                    </div>
+                </section>
+
+                <!-- Fear & Greed Index Section -->
+                <section class="indicators-section">
+                    <div class="card">
+                        <h2>Fear & Greed Index</h2>
+                        <div class="fear-greed-container">
+                            <div class="fear-greed-value">
+                                <div class="gauge" id="fear-greed-gauge">
+                                    <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+                                        <defs>
+                                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" style="stop-color:#d32f2f;stop-opacity:1" />
+                                                <stop offset="25%" style="stop-color:#f57c00;stop-opacity:1" />
+                                                <stop offset="50%" style="stop-color:#fbc02d;stop-opacity:1" />
+                                                <stop offset="75%" style="stop-color:#7cb342;stop-opacity:1" />
+                                                <stop offset="100%" style="stop-color:#388e3c;stop-opacity:1" />
+                                            </linearGradient>
+                                        </defs>
+                                        <path d="M 20 100 A 80 80 0 0 1 180 100" stroke="url(#gaugeGradient)" stroke-width="20" fill="none" stroke-linecap="round"/>
+                                        <circle id="gauge-needle" cx="100" cy="100" r="5" fill="#333"/>
+                                    </svg>
+                                </div>
+                                <div class="fear-greed-text">
+                                    <span id="fear-greed-value" class="value">--</span>
+                                    <span id="fear-greed-classification" class="classification">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Technical Indicators -->
+                    <div class="card">
+                        <h2>Technical Indicators</h2>
+                        <div class="indicators-grid">
+                            <div class="indicator">
+                                <h3>RSI (14)</h3>
+                                <p id="rsi-value" class="indicator-value">--</p>
+                                <p class="indicator-description">Relative Strength Index</p>
+                            </div>
+                            <div class="indicator">
+                                <h3>50-Day MA</h3>
+                                <p id="ma50-value" class="indicator-value">--</p>
+                                <p class="indicator-description">Moving Average</p>
+                            </div>
+                            <div class="indicator">
+                                <h3>200-Day MA</h3>
+                                <p id="ma200-value" class="indicator-value">--</p>
+                                <p class="indicator-description">Moving Average</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Trading Signals Section -->
+                <section class="signals-section">
+                    <div class="card buy-signal" id="buy-signal-card" style="display: none;">
+                        <h2>🟢 BUY SIGNAL</h2>
+                        <p>Fear & Greed Index < 20 AND RSI < 30</p>
+                        <p class="signal-time">Signal generated at: <span id="buy-signal-time">--:--:--</span></p>
+                    </div>
+
+                    <div class="card sell-signal" id="sell-signal-card" style="display: none;">
+                        <h2>🔴 SELL SIGNAL</h2>
+                        <p>Fear & Greed Index > 80 AND RSI > 70</p>
+                        <p class="signal-time">Signal generated at: <span id="sell-signal-time">--:--:--</span></p>
+                    </div>
+
+                    <div class="card no-signal" id="no-signal-card">
+                        <h2>⚪ NO SIGNAL</h2>
+                        <p>Waiting for buy or sell conditions to be met...</p>
+                    </div>
+                </section>
+
+                <!-- Chart Section -->
+                <section class="chart-section">
+                    <div class="card">
+                        <h2>Bitcoin Price - Last Year</h2>
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Bitcoin Price Tracker. Data from CoinGecko and Alternative.me</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
