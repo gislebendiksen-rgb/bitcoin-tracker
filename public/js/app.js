@@ -1,4 +1,5 @@
-let priceChart = null;
+let dailyMAChart = null;
+let weeklyMAChart = null;
 
 // Format currency
 function formatCurrency(value) {
@@ -17,12 +18,83 @@ function updateGaugeNeedle(value) {
     const angle = (value / 100) * 180;
     const radian = (angle - 90) * (Math.PI / 180);
     
-    const cx = 100 + 80 * Math.cos(radian);
-    const cy = 100 + 80 * Math.sin(radian);
+    // Calculate the end point of the needle line
+    const x2 = 100 + 75 * Math.cos(radian);
+    const y2 = 100 + 75 * Math.sin(radian);
     
-    const needle = document.getElementById('gauge-needle');
-    needle.setAttribute('cx', cx);
-    needle.setAttribute('cy', cy);
+    const needleLine = document.getElementById('gauge-needle-line');
+    needleLine.setAttribute('x2', x2);
+    needleLine.setAttribute('y2', y2);
+}
+
+// Calculate moving average
+function calculateMA(prices, period) {
+    if (prices.length < period) return null;
+    const sum = prices.slice(-period).reduce((a, b) => a + b, 0);
+    return sum / period;
+}
+
+// Find crossover dates
+function findCrossovers(historicalData) {
+    if (!historicalData || historicalData.length < 200) {
+        return {
+            daily: 'Insufficient data',
+            weekly50: 'Insufficient data',
+            weekly200: 'Insufficient data'
+        };
+    }
+
+    const prices = historicalData.map(d => d.price);
+    const dates = historicalData.map(d => d.date);
+    
+    let dailyCrossover = 'No crossover detected';
+    let weekly50Crossover = 'No crossover detected';
+    let weekly200Crossover = 'No crossover detected';
+
+    // Find last 50/200 day MA crossover
+    for (let i = prices.length - 1; i > 200; i--) {
+        const ma50_prev = calculateMA(prices.slice(0, i - 1), 50);
+        const ma200_prev = calculateMA(prices.slice(0, i - 1), 200);
+        const ma50_curr = calculateMA(prices.slice(0, i), 50);
+        const ma200_curr = calculateMA(prices.slice(0, i), 200);
+
+        if (ma50_prev && ma200_prev && ma50_curr && ma200_curr) {
+            const crossedAbove = ma50_prev < ma200_prev && ma50_curr > ma200_curr;
+            const crossedBelow = ma50_prev > ma200_prev && ma50_curr < ma200_curr;
+            
+            if (crossedAbove || crossedBelow) {
+                const direction = crossedAbove ? 'above' : 'below';
+                dailyCrossover = `${direction.charAt(0).toUpperCase() + direction.slice(1)} on ${dates[i]}`;
+                break;
+            }
+        }
+    }
+
+    return {
+        daily: dailyCrossover,
+        weekly50: weekly50Crossover,
+        weekly200: weekly200Crossover
+    };
+}
+
+// Generate signal explanation
+function generateSignalExplanation(data) {
+    const fgValue = data.fearGreedIndex.value;
+    const rsiValue = parseFloat(data.rsi);
+    
+    let explanation = '';
+    
+    if (fgValue < 20 && rsiValue < 30) {
+        explanation = '🟢 BUY conditions met: Fear & Greed < 20 AND RSI < 30';
+    } else if (fgValue > 80 && rsiValue > 70) {
+        explanation = '🔴 SELL conditions met: Fear & Greed > 80 AND RSI > 70';
+    } else {
+        explanation = `Waiting for trading signals:\n`;
+        explanation += `• BUY: Fear & Greed < 20 (currently ${fgValue}) AND RSI < 30 (currently ${rsiValue.toFixed(2)})\n`;
+        explanation += `• SELL: Fear & Greed > 80 (currently ${fgValue}) AND RSI > 70 (currently ${rsiValue.toFixed(2)})`;
+    }
+    
+    return explanation;
 }
 
 // Update the UI with Bitcoin data
@@ -69,46 +141,236 @@ function updateUI(data) {
         buySignalCard.style.display = 'none';
         sellSignalCard.style.display = 'none';
         noSignalCard.style.display = 'block';
+        document.getElementById('no-signal-explanation').textContent = generateSignalExplanation(data);
     }
 
-    // Update chart
-    updateChart(data.historicalData);
+    // Update crossover tracking
+    const crossovers = findCrossovers(data.historicalData);
+    document.getElementById('crossover-daily-text').textContent = crossovers.daily;
+    document.getElementById('crossover-weekly-50-text').textContent = crossovers.weekly50;
+    document.getElementById('crossover-weekly-200-text').textContent = crossovers.weekly200;
+
+    // Update charts
+    updateDailyMAChart(data.historicalData);
+    updateWeeklyMAChart(data.historicalData);
 
     // Show content
     content.style.display = 'block';
 }
 
-// Update the price chart
-function updateChart(historicalData) {
-    const ctx = document.getElementById('priceChart');
+// Update the daily MA chart
+function updateDailyMAChart(historicalData) {
+    const ctx = document.getElementById('dailyMAChart');
     if (!ctx) return;
 
-    const labels = historicalData.map(d => d.date);
     const prices = historicalData.map(d => d.price);
-
-    if (priceChart) {
-        priceChart.destroy();
+    const dates = historicalData.map(d => d.date);
+    
+    const ma50 = [];
+    const ma200 = [];
+    
+    for (let i = 0; i < prices.length; i++) {
+        ma50.push(calculateMA(prices.slice(0, i + 1), 50));
+        ma200.push(calculateMA(prices.slice(0, i + 1), 200));
     }
 
-    priceChart = new Chart(ctx, {
+    if (dailyMAChart) {
+        dailyMAChart.destroy();
+    }
+
+    dailyMAChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
-            datasets: [{
-                label: 'Bitcoin Price (USD)',
-                data: prices,
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 5
-            }]
+            labels: dates,
+            datasets: [
+                {
+                    label: 'Bitcoin Price (USD)',
+                    data: prices,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '50-Day MA',
+                    data: ma50,
+                    borderColor: '#ff9800',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '200-Day MA',
+                    data: ma200,
+                    borderColor: '#f44336',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        color: '#333',
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString('en-US', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0
+                            });
+                        },
+                        color: '#666'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#666',
+                        maxTicksLimit: 10
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update the weekly MA chart
+function updateWeeklyMAChart(historicalData) {
+    const ctx = document.getElementById('weeklyMAChart');
+    if (!ctx) return;
+
+    // Convert daily data to weekly data
+    const weeklyData = [];
+    let currentWeek = [];
+    let currentDate = null;
+
+    for (let i = 0; i < historicalData.length; i++) {
+        const date = new Date(historicalData[i].date);
+        const dayOfWeek = date.getDay();
+
+        if (dayOfWeek === 0 || i === 0) {
+            if (currentWeek.length > 0) {
+                const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
+                weeklyData.push({
+                    date: currentDate,
+                    price: avgPrice
+                });
+            }
+            currentWeek = [historicalData[i].price];
+            currentDate = historicalData[i].date;
+        } else {
+            currentWeek.push(historicalData[i].price);
+        }
+    }
+
+    if (currentWeek.length > 0) {
+        const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
+        weeklyData.push({
+            date: currentDate,
+            price: avgPrice
+        });
+    }
+
+    const prices = weeklyData.map(d => d.price);
+    const dates = weeklyData.map(d => d.date);
+    
+    const ma50w = [];
+    const ma200w = [];
+    
+    for (let i = 0; i < prices.length; i++) {
+        ma50w.push(calculateMA(prices.slice(0, i + 1), 50));
+        ma200w.push(calculateMA(prices.slice(0, i + 1), 200));
+    }
+
+    if (weeklyMAChart) {
+        weeklyMAChart.destroy();
+    }
+
+    weeklyMAChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'Bitcoin Price (USD)',
+                    data: prices,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '50-Week MA',
+                    data: ma50w,
+                    borderColor: '#4caf50',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '200-Week MA',
+                    data: ma200w,
+                    borderColor: '#2196f3',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
                     display: true,
