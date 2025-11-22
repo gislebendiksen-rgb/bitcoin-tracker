@@ -335,11 +335,12 @@ main {
 }
 
 .chart-section .card {
-    min-height: 450px;
+    min-height: 600px;
 }
 
 .chart-section canvas {
-    max-height: 400px;
+    max-height: 550px;
+    min-height: 500px;
 }
 
 /* Footer */

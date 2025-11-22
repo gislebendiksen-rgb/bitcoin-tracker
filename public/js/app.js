@@ -14,8 +14,9 @@ function formatCurrency(value) {
 // Update gauge needle position based on Fear & Greed value
 function updateGaugeNeedle(value) {
     // Value ranges from 0-100, we need to map it to the gauge arc
-    // The arc goes from 0 degrees (left) to 180 degrees (right)
-    const angle = (value / 100) * 180;
+    // The arc goes from 180 degrees (left/red) to 0 degrees (right/green)
+    // So we need to reverse the calculation
+    const angle = 180 - (value / 100) * 180;
     const radian = (angle - 90) * (Math.PI / 180);
     
     // Calculate the end point of the needle line
@@ -66,6 +67,80 @@ function findCrossovers(historicalData) {
                 const direction = crossedAbove ? 'above' : 'below';
                 dailyCrossover = `${direction.charAt(0).toUpperCase() + direction.slice(1)} on ${dates[i]}`;
                 break;
+            }
+        }
+    }
+
+    // Convert daily data to weekly data for weekly crossover detection
+    const weeklyData = [];
+    let currentWeek = [];
+    let currentDate = null;
+
+    for (let i = 0; i < historicalData.length; i++) {
+        const date = new Date(historicalData[i].date);
+        const dayOfWeek = date.getDay();
+
+        if (dayOfWeek === 0 || i === 0) {
+            if (currentWeek.length > 0) {
+                const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
+                weeklyData.push({
+                    date: currentDate,
+                    price: avgPrice
+                });
+            }
+            currentWeek = [historicalData[i].price];
+            currentDate = historicalData[i].date;
+        } else {
+            currentWeek.push(historicalData[i].price);
+        }
+    }
+
+    if (currentWeek.length > 0) {
+        const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
+        weeklyData.push({
+            date: currentDate,
+            price: avgPrice
+        });
+    }
+
+    // Find last price/50-week MA crossover
+    if (weeklyData.length > 50) {
+        for (let i = weeklyData.length - 1; i > 50; i--) {
+            const price_prev = weeklyData[i - 1].price;
+            const price_curr = weeklyData[i].price;
+            const ma50w_prev = calculateMA(weeklyData.slice(0, i - 1).map(d => d.price), 50);
+            const ma50w_curr = calculateMA(weeklyData.slice(0, i).map(d => d.price), 50);
+
+            if (ma50w_prev && ma50w_curr) {
+                const crossedAbove = price_prev < ma50w_prev && price_curr > ma50w_curr;
+                const crossedBelow = price_prev > ma50w_prev && price_curr < ma50w_curr;
+                
+                if (crossedAbove || crossedBelow) {
+                    const direction = crossedAbove ? 'above' : 'below';
+                    weekly50Crossover = `${direction.charAt(0).toUpperCase() + direction.slice(1)} on ${weeklyData[i].date}`;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Find last price/200-week MA crossover
+    if (weeklyData.length > 200) {
+        for (let i = weeklyData.length - 1; i > 200; i--) {
+            const price_prev = weeklyData[i - 1].price;
+            const price_curr = weeklyData[i].price;
+            const ma200w_prev = calculateMA(weeklyData.slice(0, i - 1).map(d => d.price), 200);
+            const ma200w_curr = calculateMA(weeklyData.slice(0, i).map(d => d.price), 200);
+
+            if (ma200w_prev && ma200w_curr) {
+                const crossedAbove = price_prev < ma200w_prev && price_curr > ma200w_curr;
+                const crossedBelow = price_prev > ma200w_prev && price_curr < ma200w_curr;
+                
+                if (crossedAbove || crossedBelow) {
+                    const direction = crossedAbove ? 'above' : 'below';
+                    weekly200Crossover = `${direction.charAt(0).toUpperCase() + direction.slice(1)} on ${weeklyData[i].date}`;
+                    break;
+                }
             }
         }
     }
