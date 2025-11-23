@@ -13,13 +13,14 @@ function formatCurrency(value) {
 
 // Update gauge needle position based on Fear & Greed value
 function updateGaugeNeedle(value) {
-    // Value ranges from 0-100, we need to map it to the gauge arc
-    // The arc goes from 180 degrees (left/red) to 0 degrees (right/green)
-    // So we need to reverse the calculation
+    // Value ranges from 0-100
+    // The arc goes from left (180 degrees = red/fear) to right (0 degrees = green/greed)
+    // Map value 0-100 to angle 180-0 degrees
     const angle = 180 - (value / 100) * 180;
-    const radian = (angle - 90) * (Math.PI / 180);
+    const radian = (angle * Math.PI / 180);
     
     // Calculate the end point of the needle line
+    // Center is at (100, 100), needle length is 75
     const x2 = 100 + 75 * Math.cos(radian);
     const y2 = 100 + 75 * Math.sin(radian);
     
@@ -80,7 +81,15 @@ function findCrossovers(historicalData) {
         const date = new Date(historicalData[i].date);
         const dayOfWeek = date.getDay();
 
-        if (dayOfWeek === 0 || i === 0) {
+        if (dayOfWeek === 5 || i === historicalData.length - 1) {
+            currentWeek.push(historicalData[i].price);
+            const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
+            weeklyData.push({
+                date: historicalData[i].date,
+                price: avgPrice
+            });
+            currentWeek = [];
+        } else if (dayOfWeek === 0 && i > 0) {
             if (currentWeek.length > 0) {
                 const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
                 weeklyData.push({
@@ -93,14 +102,6 @@ function findCrossovers(historicalData) {
         } else {
             currentWeek.push(historicalData[i].price);
         }
-    }
-
-    if (currentWeek.length > 0) {
-        const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
-        weeklyData.push({
-            date: currentDate,
-            price: avgPrice
-        });
     }
 
     // Find last price/50-week MA crossover
@@ -349,36 +350,31 @@ function updateWeeklyMAChart(historicalData) {
     const ctx = document.getElementById('weeklyMAChart');
     if (!ctx) return;
 
-    // Convert daily data to weekly data
+    // Convert daily data to weekly data by taking Friday close (or last day of week)
     const weeklyData = [];
-    let currentWeek = [];
-    let currentDate = null;
+    let weekPrices = [];
+    let weekStart = null;
 
     for (let i = 0; i < historicalData.length; i++) {
         const date = new Date(historicalData[i].date);
         const dayOfWeek = date.getDay();
-
-        if (dayOfWeek === 0 || i === 0) {
-            if (currentWeek.length > 0) {
-                const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
-                weeklyData.push({
-                    date: currentDate,
-                    price: avgPrice
-                });
-            }
-            currentWeek = [historicalData[i].price];
-            currentDate = historicalData[i].date;
-        } else {
-            currentWeek.push(historicalData[i].price);
+        
+        if (weekStart === null) {
+            weekStart = historicalData[i].date;
         }
-    }
-
-    if (currentWeek.length > 0) {
-        const avgPrice = currentWeek.reduce((a, b) => a + b, 0) / currentWeek.length;
-        weeklyData.push({
-            date: currentDate,
-            price: avgPrice
-        });
+        
+        weekPrices.push(historicalData[i].price);
+        
+        // End of week (Friday = 5, or last data point)
+        if (dayOfWeek === 5 || i === historicalData.length - 1) {
+            const avgPrice = weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length;
+            weeklyData.push({
+                date: historicalData[i].date,
+                price: avgPrice
+            });
+            weekStart = null;
+            weekPrices = [];
+        }
     }
 
     const prices = weeklyData.map(d => d.price);
@@ -387,9 +383,12 @@ function updateWeeklyMAChart(historicalData) {
     const ma50w = [];
     const ma200w = [];
     
+    // Calculate MAs for all weeks, starting from the beginning
     for (let i = 0; i < prices.length; i++) {
-        ma50w.push(calculateMA(prices.slice(0, i + 1), 50));
-        ma200w.push(calculateMA(prices.slice(0, i + 1), 200));
+        const ma50 = calculateMA(prices.slice(0, i + 1), 50);
+        const ma200 = calculateMA(prices.slice(0, i + 1), 200);
+        ma50w.push(ma50);
+        ma200w.push(ma200);
     }
 
     if (weeklyMAChart) {
