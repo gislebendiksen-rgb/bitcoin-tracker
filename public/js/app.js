@@ -13,16 +13,21 @@ function formatCurrency(value) {
 
 // Update gauge needle position based on Fear & Greed value
 function updateGaugeNeedle(value) {
-    // Value ranges from 0-100
-    // The arc goes from left (180 degrees = red/fear) to right (0 degrees = green/greed)
-    // Map value 0-100 to angle 180-0 degrees
-    const angle = 180 - (value / 100) * 180;
-    const radian = (angle * Math.PI / 180);
+    // SVG arc: M 20 100 A 80 80 0 0 1 180 100
+    // Semicircle with center at (100, 100) and radius 80
+    // Value 0 (fear) = 180 degrees (left), Value 100 (greed) = 0 degrees (right)
     
-    // Calculate the end point of the needle line
-    // Center is at (100, 100), needle length is 75
-    const x2 = 100 + 75 * Math.cos(radian);
-    const y2 = 100 + 75 * Math.sin(radian);
+    const cx = 100;  // center x
+    const cy = 100;  // center y
+    const radius = 80;  // arc radius
+    
+    // Map value 0-100 to angle 180-0 degrees
+    const angleDegrees = 180 - (value / 100) * 180;
+    const angleRadians = (angleDegrees * Math.PI / 180);
+    
+    // Calculate point on the arc
+    const x2 = cx + radius * Math.cos(angleRadians);
+    const y2 = cy + radius * Math.sin(angleRadians);
     
     const needleLine = document.getElementById('gauge-needle-line');
     needleLine.setAttribute('x2', x2);
@@ -350,31 +355,48 @@ function updateWeeklyMAChart(historicalData) {
     const ctx = document.getElementById('weeklyMAChart');
     if (!ctx) return;
 
-    // Convert daily data to weekly data by taking Friday close (or last day of week)
+    // Convert daily data to weekly data
+    // Group prices by calendar week (Sunday to Saturday)
     const weeklyData = [];
     let weekPrices = [];
-    let weekStart = null;
+    let weekStartDate = null;
+    let lastWeekNumber = -1;
 
     for (let i = 0; i < historicalData.length; i++) {
         const date = new Date(historicalData[i].date);
-        const dayOfWeek = date.getDay();
         
-        if (weekStart === null) {
-            weekStart = historicalData[i].date;
-        }
+        // Get week number
+        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+        const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
         
-        weekPrices.push(historicalData[i].price);
-        
-        // End of week (Friday = 5, or last data point)
-        if (dayOfWeek === 5 || i === historicalData.length - 1) {
-            const avgPrice = weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length;
-            weeklyData.push({
-                date: historicalData[i].date,
-                price: avgPrice
-            });
-            weekStart = null;
+        // If we've moved to a new week, save the previous week's data
+        if (weekNumber !== lastWeekNumber && lastWeekNumber !== -1) {
+            if (weekPrices.length > 0) {
+                const avgPrice = weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length;
+                weeklyData.push({
+                    date: weekStartDate,
+                    price: avgPrice
+                });
+            }
             weekPrices = [];
         }
+        
+        // Add current price to week
+        if (weekPrices.length === 0) {
+            weekStartDate = historicalData[i].date;
+        }
+        weekPrices.push(historicalData[i].price);
+        lastWeekNumber = weekNumber;
+    }
+    
+    // Don't forget the last week
+    if (weekPrices.length > 0) {
+        const avgPrice = weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length;
+        weeklyData.push({
+            date: weekStartDate,
+            price: avgPrice
+        });
     }
 
     const prices = weeklyData.map(d => d.price);
