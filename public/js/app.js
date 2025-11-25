@@ -356,22 +356,25 @@ function updateWeeklyMAChart(historicalData) {
     if (!ctx) return;
 
     // Convert daily data to weekly data
-    // Group prices by calendar week (Sunday to Saturday)
+    // Group prices by calendar week (Monday to Sunday)
     const weeklyData = [];
     let weekPrices = [];
     let weekStartDate = null;
-    let lastWeekNumber = -1;
+    let lastWeekStart = null;
 
     for (let i = 0; i < historicalData.length; i++) {
         const date = new Date(historicalData[i].date);
+        const dayOfWeek = date.getDay();
         
-        // Get week number
-        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-        const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        // Calculate the start of the current week (Monday = 1)
+        const currentDate = new Date(date);
+        const daysToMonday = (dayOfWeek === 0) ? 6 : dayOfWeek - 1;
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(currentDate.getDate() - daysToMonday);
+        const weekStartStr = weekStart.toISOString().split('T')[0];
         
         // If we've moved to a new week, save the previous week's data
-        if (weekNumber !== lastWeekNumber && lastWeekNumber !== -1) {
+        if (lastWeekStart !== null && weekStartStr !== lastWeekStart) {
             if (weekPrices.length > 0) {
                 const avgPrice = weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length;
                 weeklyData.push({
@@ -387,7 +390,7 @@ function updateWeeklyMAChart(historicalData) {
             weekStartDate = historicalData[i].date;
         }
         weekPrices.push(historicalData[i].price);
-        lastWeekNumber = weekNumber;
+        lastWeekStart = weekStartStr;
     }
     
     // Don't forget the last week
