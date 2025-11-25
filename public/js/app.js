@@ -14,7 +14,7 @@ function formatCurrency(value) {
 // Update gauge needle position based on Fear & Greed value
 function updateGaugeNeedle(value) {
     // SVG arc: M 20 100 A 80 80 0 0 1 180 100
-    // Semicircle with center at (100, 100) and radius 80
+    // Upward semicircle with center at (100, 100) and radius 80
     // Value 0 (fear) = 180 degrees (left), Value 100 (greed) = 0 degrees (right)
     
     const cx = 100;  // center x
@@ -25,9 +25,9 @@ function updateGaugeNeedle(value) {
     const angleDegrees = 180 - (value / 100) * 180;
     const angleRadians = (angleDegrees * Math.PI / 180);
     
-    // Calculate point on the arc
+    // Calculate point on the arc (upward semicircle, so subtract sine)
     const x2 = cx + radius * Math.cos(angleRadians);
-    const y2 = cy + radius * Math.sin(angleRadians);
+    const y2 = cy - radius * Math.sin(angleRadians);
     
     const needleLine = document.getElementById('gauge-needle-line');
     needleLine.setAttribute('x2', x2);
