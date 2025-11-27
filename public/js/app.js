@@ -35,10 +35,12 @@ function updateGaugeNeedle(value) {
 }
 
 // Calculate moving average
+// If we don't have enough data for the full period, use all available data
 function calculateMA(prices, period) {
-    if (prices.length < period) return null;
-    const sum = prices.slice(-period).reduce((a, b) => a + b, 0);
-    return sum / period;
+    if (prices.length === 0) return null;
+    const dataToUse = Math.min(prices.length, period);
+    const sum = prices.slice(-dataToUse).reduce((a, b) => a + b, 0);
+    return sum / dataToUse;
 }
 
 // Find crossover dates
