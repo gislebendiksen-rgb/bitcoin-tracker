@@ -457,9 +457,9 @@ function updateWeeklyMAChart(historicalData) {
                 {
                     label: '200-Week MA',
                     data: ma200w,
-                    borderColor: '#2196f3',
+                    borderColor: '#ff0000',
                     backgroundColor: 'transparent',
-                    borderWidth: 2,
+                    borderWidth: 3,
                     fill: false,
                     tension: 0.4,
                     pointRadius: 0,
