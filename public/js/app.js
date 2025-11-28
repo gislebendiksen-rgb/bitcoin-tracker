@@ -417,6 +417,9 @@ function updateWeeklyMAChart(historicalData) {
         ma50w.push(ma50);
         ma200w.push(ma200);
     }
+    
+    console.log('Weekly MA Debug - Prices:', prices.length, 'MA50:', ma50w.length, 'MA200:', ma200w.length);
+    console.log('MA200 values:', ma200w);
 
     if (weeklyMAChart) {
         weeklyMAChart.destroy();
